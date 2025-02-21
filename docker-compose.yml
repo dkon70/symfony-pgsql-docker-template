@@ -1,0 +1,56 @@
+services:
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public:/var/www/public
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - symfony
+      - database
+    networks:
+      - symfony-app-network
+
+  symfony:
+    container_name: symfony
+    build:
+      dockerfile: ./Dockerfile
+    ports:
+      - "9000:9000"
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - .:/var/www
+    networks:
+      - symfony-app-network
+
+  database:
+    container_name: postgres
+    image: postgres:latest
+    restart: always
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d symfony-app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - symfony-app-db:/var/lib/postgresql/data
+    networks:
+      - symfony-app-network
+
+volumes:
+  symfony-app-db:
+
+networks:
+  symfony-app-network:
